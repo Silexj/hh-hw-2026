@@ -45,3 +45,72 @@ def test_register_call_counts_calls_between_local_and_foreign_users() -> None:
 
     assert switchboard.get_active_calls_count() == 3
     assert switchboard.get_cross_border_calls_count() == 1
+
+def test_register_call_not_counts_cross_border() -> None:
+    switchboard = Switchboard()
+
+    switchboard.register_call(
+        "1,Ivan Ivanov,+79990000000,2,Petr Petrov,+78880000000"
+    )
+
+    assert switchboard.get_cross_border_calls_count() == 0
+
+def test_register_call_raise_error_with_incorrect_arguments() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(AttributeError, 
+                       match="Input string must contain 6 values separated by ',', actual: *"):
+        switchboard.register_call(
+            "1,Ivan Ivanov,+79990000000,2,Petr Petrov+78880000000"
+        )
+
+def test_register_call_has_no_active_at_init() -> None:
+    switchboard = Switchboard()
+
+    assert switchboard.get_active_calls_count() == 0
+    assert switchboard.get_cross_border_calls_count() == 0
+
+def test_register_call_raise_error_with_incorrect_id() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(AttributeError, 
+                       match="Input string must contain 2 positive int id, actual: *"):
+        switchboard.register_call(
+            "1asd,Ivan Ivanov,+79990000000,2,Petr Petrov,+78880000000"
+        )
+
+def test_register_call_raise_error_with_negative_id() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(AttributeError, 
+                       match="Input string must contain 2 positive int id, actual: *"):
+        switchboard.register_call(
+            "-1,Ivan Ivanov,+79990000000,2,Petr Petrov,+78880000000"
+        )
+
+def test_register_call_raise_error_with_empty_name() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(AttributeError, 
+                       match="Input string must contain non-empty names, actual: *"):
+        switchboard.register_call(
+            "1,Ivan Ivanov,+79990000000,2,,+78880000000"
+        )
+
+def test_register_call_raise_error_with_no_country_code() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(AttributeError, 
+                       match="Input string must contain valid phone number, actual: *"):
+        switchboard.register_call(
+            "1,Ivan Ivanov,999990000000,2,Petr Petrov,+78880000000"
+        )
+    
+def test_register_call_raise_error_with_empty_phone() -> None:
+    switchboard = Switchboard()
+
+    with pytest.raises(AttributeError, 
+                       match="Input string must contain valid phone number, actual: *"):
+        switchboard.register_call(
+            "1,Ivan Ivanov,,2,Petr Petrov,+78880000000"
+        )
