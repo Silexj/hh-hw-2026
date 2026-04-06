@@ -22,6 +22,29 @@ class Switchboard:
     def __init__(self) -> None:
         self._active_calls: list[ActiveCall] = []
         self._cross_border_count = 0
+        self._phones_in_use: set[str] = set()
+
+    @staticmethod
+    def create_user(u_id: int, u_name: str, u_phone: str) -> User:
+        if u_phone.startswith(LOCAL_PHONE_PREFIX):
+            return LocalUser(u_id, u_name, u_phone)
+        return ForeignUser(u_id, u_name, u_phone)
+
+    def _validate_format(self, c_id: str, c_name: str, c_phone: str, r_id: str, r_name: str, r_phone: str, raw_call: str) -> None:
+        if not (c_id.isnumeric() and int(c_id) >= 0) or not (r_id.isnumeric() and int(r_id) >= 0):
+            raise AttributeError(f"Input string must contain 2 positive int id, actual: {raw_call}")
+
+        if len(c_name) == 0 or len(r_name) == 0:
+            raise AttributeError(f"Input string must contain non-empty names, actual: {raw_call}")
+        
+        if not c_name.replace(" ", "").isalpha() or not r_name.replace(" ", "").isalpha():
+            raise AttributeError(f"Input string must contain alphabetical caller and receiver name, actual: {raw_call}")
+
+        if len(c_phone) < 11 or len(c_phone) > 16 or not c_phone.startswith("+") or not c_phone[1::].isnumeric():
+            raise AttributeError(f"Input string must contain valid caller phone number, actual: {c_phone}")
+        
+        if len(r_phone) < 11 or len(r_phone) > 16 or not r_phone.startswith("+") or not r_phone[1::].isnumeric():
+            raise AttributeError(f"Input string must contain valid receiver phone number, actual: {r_phone}")
 
     def register_call(self, raw_call: str) -> ActiveCall:
         '''
@@ -30,25 +53,27 @@ class Switchboard:
 
         Например: "1001,Иван Петров,+71234567890,1085,Адам Яковлев,+71255556666"
         '''
-        strs = raw_call.split(",")
-        
-        if len(strs) != 6:
+        segments = [segment.strip() for segment in raw_call.split(",")]
+        if len(segments) != 6:
             raise AttributeError(f"Input string must contain 6 values separated by ',', actual: {raw_call}")
         
-        c_id, c_name, c_phone, r_id, r_name, r_phone = strs;
-        if not (c_id.isnumeric() and int(c_id) >= 0) or not (r_id.isnumeric() and int(r_id) >= 0):
-            raise AttributeError(f"Input string must contain 2 positive int id, actual: {raw_call}")
+        c_id, c_name, c_phone, r_id, r_name, r_phone = segments
+        self._validate_format(c_id, c_name, c_phone, r_id, r_name, r_phone, raw_call)
 
-        if len(c_name) == 0 or len(r_name) == 0:
-            raise AttributeError(f"Input string must contain non-empty names, actual: {raw_call}")
-        if (len(c_phone) == 0 or not c_phone.startswith("+")) \
-            and (len(r_phone) or not c_phone.startswith("+")):
-                raise AttributeError(f"Input string must contain valid phone number, actual: {raw_call}")
+        if c_phone == r_phone:
+            raise AttributeError("Caller and receiver cannot have same phone")
 
-            
-        caller = LocalUser(int(c_id), c_name, c_phone) if c_phone.startswith(LOCAL_PHONE_PREFIX) else ForeignUser(int(c_id), c_name, c_phone)
-        receiver = LocalUser(int(r_id), r_name, r_phone) if r_phone.startswith(LOCAL_PHONE_PREFIX) else ForeignUser(int(r_id), r_name, r_phone)
-        
+        if c_phone in self._phones_in_use:
+            raise AttributeError("Caller phone already in call")
+        if r_phone in self._phones_in_use:
+            raise AttributeError("Receiver phone already in call")
+
+        caller = self.create_user(int(c_id), c_name, c_phone)
+        receiver = self.create_user(int(r_id), r_name, r_phone)
+
+        self._phones_in_use.add(c_phone)
+        self._phones_in_use.add(r_phone)
+
         newCall = ActiveCall(caller, receiver)
         if newCall.is_cross_border:
             self._cross_border_count += 1
